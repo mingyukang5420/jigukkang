@@ -45,12 +45,16 @@
 
           <div class="meta-info">
             <div class="author">
-              <div class="avatar">👤</div>
+              <img
+                class="avatar"
+                :src="article.author.profile_image"
+                :alt="article.author.nickname"
+              />
               <div class="author-info">
                 <span class="author-name">{{ article.author.nickname || '익명' }}</span>
-                <span class="date">{{ formatDate(article.created_at) }}</span>
-                <span v-if="article.updated_at !== article.created_at" class="edited">
-                  (수정됨)
+                <span class="date">
+                  {{ formatDate(article.created_at) }}
+                  <i v-if="article.updated_at !== article.created_at" class="edited"> (수정됨) </i>
                 </span>
               </div>
             </div>
@@ -65,13 +69,6 @@
                 <span v-else>👉 Follow</span>
               </button>
             </div>
-          </div>
-
-          <div class="author-actions" v-if="isAuthor">
-            <router-link :to="`/articles/${article.id}/edit`" class="btn-edit">
-              ✏️ 수정
-            </router-link>
-            <button @click="handleDelete" class="btn-delete">🗑️ 삭제</button>
           </div>
         </div>
 
@@ -112,7 +109,7 @@
         </div>
 
         <div class="hashtags" v-if="parsedTags.length > 0">
-          <span v-for="tag in parsedTags" :key="tag" class="hashtag"> #{{ tag }} </span>
+          <span v-for="tag in parsedTags" :key="tag" class="hashtag"> {{ tag }} </span>
         </div>
 
         <div class="comments-section">
@@ -167,6 +164,25 @@
             </div>
           </div>
           <div v-else class="no-comments">아직 댓글이 없습니다. 첫 번째 댓글을 남겨보세요!</div>
+        </div>
+
+        <div class="author-actions" v-if="isAuthor">
+          <router-link
+            :to="`/articles/${article.id}/edit`"
+            class="icon-btn btn-edit"
+            title="수정"
+            aria-label="게시글 수정"
+          >
+            게시글 수정
+          </router-link>
+          <button
+            @click="handleDelete"
+            class="icon-btn btn-delete"
+            title="삭제"
+            aria-label="게시글 삭제"
+          >
+            게시글 삭제
+          </button>
         </div>
       </div>
     </template>
@@ -548,6 +564,10 @@ onMounted(async () => {
   color: #999;
   font-size: 0.9rem;
 }
+.edited {
+  font-style: normal;
+  font-size: 0.85rem;
+}
 
 /* 팔로우 버튼 스타일 */
 .follow-btn {
@@ -608,27 +628,25 @@ onMounted(async () => {
 }
 
 .author-actions {
+  padding: 40px 0 10px;
   display: flex;
-  gap: 10px;
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #e0e0e0;
+  gap: 12px;
+  justify-content: center;
+}
+.icon-btn {
+  padding: 8px 25px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1rem;
+  cursor: pointer;
 }
 .btn-edit {
-  background: #3498db;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-size: 0.9rem;
+  background: #e3f2fd;
+  color: #1976d2;
 }
 .btn-delete {
-  background: white;
-  color: #e74c3c;
-  border: 2px solid #e74c3c;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
+  background: #ffe3e3;
+  color: #ff4757;
 }
 
 .image-slider {

@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     "accounts",
     "articles",
     "places",
-    # "recommendations",
+    "recommendations",
     # Third-party
     "drf_spectacular",
     "rest_framework",

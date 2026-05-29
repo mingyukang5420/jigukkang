@@ -3,8 +3,19 @@
     <div class="container">
       <div class="header-section">
         <button @click="$router.back()" class="btn-back">← 뒤로가기</button>
-        <h1 class="page-title">내 게시글 목록</h1>
+        <h1 class="page-title">📝 작성한 글</h1>
         <p class="page-subtitle">총 {{ pagination.total_count }}개의 이야기를 공유하셨습니다.</p>
+
+        <div class="category-filter">
+          <button
+            v-for="cat in categories"
+            :key="cat.value"
+            :class="['filter-btn', { active: selectedCategory === cat.value }]"
+            @click="changeCategory(cat.value)"
+          >
+            {{ cat.label }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -28,11 +39,14 @@
           >
             <div class="article-image">
               <img
-                :src="article.images?.[0] || 'https://picsum.photos/400/300'"
+                :src="
+                  article.thumbnail || article.place?.main_image || 'https://picsum.photos/400/300'
+                "
+                @error="(e) => (e.target.src = 'https://picsum.photos/400/300')"
                 alt="article thumbnail"
               />
               <div class="article-category" v-if="article.place?.category_path">
-                {{ article.place.category_path.split('>').pop() }}
+                {{ article.place.category_path.split('>').pop().trim() }}
               </div>
             </div>
 
@@ -88,6 +102,7 @@ axios.defaults.baseURL = 'http://localhost:8000/api/v1'
 
 const articles = ref([])
 const loading = ref(true)
+const selectedCategory = ref('')
 const pagination = ref({
   current_page: 1,
   total_pages: 0,
@@ -95,6 +110,19 @@ const pagination = ref({
   has_next: false,
   has_previous: false,
 })
+
+// 카테고리 목록 정의
+const categories = [
+  { label: '전체', value: '' },
+  { label: '음식점', value: '음식' },
+  { label: '카페', value: '카페' },
+  { label: '쇼핑', value: '쇼핑' },
+  { label: '문화관광', value: '문화' },
+  { label: '숙박', value: '숙박' },
+  { label: '자연명소', value: '자연' },
+  { label: '축제/행사', value: '축제' },
+  { label: '역사/유적', value: '역사' },
+]
 
 // 게시글 데이터 가져오기
 const fetchMyArticles = async (page = 1) => {
@@ -104,6 +132,10 @@ const fetchMyArticles = async (page = 1) => {
 
   try {
     const response = await axios.get(`/mypage/articles/?page=${page}`, {
+      params: {
+        page: page,
+        category: selectedCategory.value,
+      },
       headers: {
         // 백엔드 설정에 따라 'Bearer ' 또는 'Token ' 등을 붙여야 합니다.
         Authorization: `Bearer ${token}`,
@@ -120,6 +152,12 @@ const fetchMyArticles = async (page = 1) => {
   } finally {
     loading.value = false
   }
+}
+
+// 카테고리 변경 함수
+const changeCategory = (catValue) => {
+  selectedCategory.value = catValue
+  fetchMyArticles(1) // 카테고리 변경 시 첫 페이지부터 조회
 }
 
 // 상세 페이지 이동
@@ -163,13 +201,14 @@ onMounted(() => {
 }
 
 .btn-back {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7f8c8d;
   background: none;
   border: none;
-  color: #667eea;
-  font-weight: 600;
   cursor: pointer;
+  padding: 10px 0;
   margin-bottom: 15px;
-  padding: 0;
 }
 
 .page-title {
@@ -218,14 +257,16 @@ onMounted(() => {
 
 .article-category {
   position: absolute;
-  top: 15px;
-  left: 15px;
-  background: rgba(102, 126, 234, 0.9);
-  color: white;
-  padding: 5px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  backdrop-filter: saturate(120%) blur(4px);
+  pointer-events: none;
 }
 
 .article-info {
@@ -343,6 +384,43 @@ onMounted(() => {
   border-radius: 50%;
   margin: 0 auto 20px;
   animation: spin 1s linear infinite;
+}
+
+/* 카테고리 필터 스타일 */
+.category-filter {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  overflow-x: auto; /* 모바일 대응 */
+  padding-bottom: 5px;
+}
+
+.filter-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.filter-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* 스크롤바 숨기기 (선택 사항) */
+.category-filter::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes spin {

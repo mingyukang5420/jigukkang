@@ -344,6 +344,12 @@ def my_articles(request):
         .order_by("-created_at")
     )
 
+    # 카테고리 필터링
+    category = request.GET.get("category")
+    if category:
+        # 게시글과 연결된 장소(place)의 category_path를 검색
+        articles = articles.filter(place__category_path__icontains=category)
+
     # 페이지네이션
     page = int(request.GET.get("page", 1))
     page_size = min(int(request.GET.get("page_size", 30)), 100)

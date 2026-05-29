@@ -3,7 +3,7 @@
     <div class="container">
       <div class="header-section">
         <button @click="$router.back()" class="btn-back">← 뒤로가기</button>
-        <h1 class="page-title">저장한 장소</h1>
+        <h1 class="page-title">⭐ 저장한 장소</h1>
         <p class="page-subtitle">다시 방문하고 싶은 {{ totalCount }}개의 장소를 모아봤어요.</p>
       </div>
 
@@ -166,13 +166,14 @@ onMounted(() => {
 }
 
 .btn-back {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7f8c8d;
   background: none;
   border: none;
-  color: #667eea;
-  font-weight: 600;
   cursor: pointer;
+  padding: 10px 0;
   margin-bottom: 15px;
-  padding: 0;
 }
 
 .page-title {
@@ -255,12 +256,14 @@ onMounted(() => {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 4px 10px;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #333;
+  backdrop-filter: saturate(120%) blur(4px);
+  pointer-events: none;
 }
 
 .place-info {

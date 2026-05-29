@@ -167,15 +167,16 @@ onMounted(async () => {
 
 .category-badge {
   position: absolute;
-  top: 15px;
-  left: 15px;
-  background: rgba(102, 126, 234, 0.9);
-  color: white;
-  padding: 6px 14px;
-  border-radius: 30px;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
   font-size: 0.75rem;
   font-weight: 700;
-  backdrop-filter: blur(5px);
+  backdrop-filter: saturate(120%) blur(4px);
+  pointer-events: none;
 }
 
 /* 본문 영역 */

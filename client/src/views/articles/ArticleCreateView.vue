@@ -6,15 +6,100 @@
     </div>
 
     <form @submit.prevent="handleSubmit" class="article-form">
-      <!-- 장소 선택 -->
+      <!-- 장소 검색 -->
       <div class="form-group">
-        <label for="place">장소 <span class="required">*</span></label>
-        <select id="place" v-model="formData.place_id" required class="form-control">
-          <option value="">장소를 선택하세요</option>
-          <option v-for="place in places" :key="place.place_id" :value="place.place_id">
-            {{ place.name }} - {{ place.category }}
-          </option>
-        </select>
+        <label for="place-search"> 장소 <span class="required">*</span> </label>
+
+        <!-- 선택된 장소 표시 -->
+        <div v-if="selectedPlace" class="selected-place">
+          <div class="place-info">
+            <img
+              v-if="selectedPlace.main_image"
+              :src="selectedPlace.main_image"
+              alt="장소 이미지"
+              class="place-thumbnail"
+            />
+            <div class="place-details">
+              <p class="place-title">{{ selectedPlace.title }}</p>
+              <p class="place-category">{{ selectedPlace.category_path }}</p>
+              <p class="place-address">{{ selectedPlace.address_new }}</p>
+            </div>
+          </div>
+          <button type="button" @click="clearSelectedPlace" class="btn-clear-place">변경</button>
+        </div>
+
+        <!-- 검색 입력 -->
+        <div v-else class="place-search-wrapper">
+          <input
+            id="place-search"
+            v-model="placeSearchQuery"
+            type="text"
+            placeholder="장소명 또는 주소를 입력하세요 (최소 2자)"
+            class="form-control"
+            @input="handlePlaceSearch"
+            @focus="showSearchResults = true"
+            autocomplete="off"
+          />
+
+          <!-- 검색 결과 드롭다운 -->
+          <div
+            v-if="
+              showSearchResults &&
+              (searchResults.length > 0 || isSearching || placeSearchQuery.length === 0)
+            "
+            class="search-results-dropdown"
+          >
+            <div v-if="placeSearchQuery.length === 0" class="recommendation-section">
+              <p class="recommend-title">추천 키워드</p>
+              <div class="keyword-list">
+                <!-- 추후 인기 키워드로 반영 -->
+                <button
+                  v-for="kw in ['서울', '잠실', '카페', '떡볶이']"
+                  :key="kw"
+                  type="button"
+                  @mousedown="selectKeyword(kw)"
+                  class="keyword-tag"
+                >
+                  #{{ kw }}
+                </button>
+              </div>
+            </div>
+            <!-- 로딩 -->
+            <div v-if="isSearching" class="search-loading">
+              <span class="loading-spinner"></span>
+              검색 중...
+            </div>
+
+            <!-- 검색 결과 -->
+            <div v-else-if="searchResults.length > 0" class="search-results-list">
+              <div
+                v-for="place in searchResults"
+                :key="place.cid"
+                class="search-result-item"
+                @click="selectPlace(place)"
+              >
+                <img
+                  v-if="place.main_image"
+                  :src="place.main_image"
+                  alt="장소 이미지"
+                  class="result-thumbnail"
+                />
+                <div class="result-info">
+                  <p class="result-category">{{ place.category_path }}</p>
+                  <p class="result-title">{{ place.title }}</p>
+                  <p class="result-address">{{ place.address_new }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 결과 없음 -->
+            <div v-else-if="placeSearchQuery.length >= 2" class="no-results">
+              검색 결과가 없습니다
+            </div>
+          </div>
+        </div>
+
+        <p v-if="!selectedPlace" class="help-text">장소명이나 주소로 검색하세요</p>
       </div>
 
       <!-- 제목 -->
@@ -52,9 +137,13 @@
           id="hashtags"
           v-model="hashtagInput"
           type="text"
-          placeholder="#감성카페 #야장맛집 #길거리음식"
+          placeholder="키워드 입력 후 스페이스 또는 엔터"
           class="form-control"
-          @keypress.enter.prevent="addHashtag"
+          @input="handleHashtagInput"
+          @compositionstart="isComposing = true"
+          @compositionend="onCompositionEnd"
+          @keyup.enter.prevent="addHashtag"
+          @blur="addHashtag"
         />
         <div v-if="hashtags.length > 0" class="hashtag-list">
           <span v-for="(tag, index) in hashtags" :key="index" class="hashtag-item">
@@ -85,20 +174,13 @@
           <div v-for="(img, index) in imagePreview" :key="index" class="image-preview-item">
             <img :src="img.url" :alt="`preview-${index}`" />
             <button type="button" @click="removeImage(index)" class="btn-remove-image">×</button>
-            <input
-              v-model="img.order"
-              type="number"
-              min="0"
-              class="image-order"
-              placeholder="순서"
-            />
           </div>
         </div>
       </div>
 
       <!-- 제출 버튼 -->
       <div class="form-actions">
-        <button type="submit" class="btn-submit" :disabled="isSubmitting">
+        <button type="submit" class="btn-submit" :disabled="isSubmitting || !selectedPlace">
           {{ isSubmitting ? '작성 중...' : '게시물 작성' }}
         </button>
       </div>
@@ -107,16 +189,23 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const isSubmitting = ref(false)
 const fileInput = ref(null)
-const places = ref([])
+
+// 장소 검색 관련
+const placeSearchQuery = ref('')
+const searchResults = ref([])
+const selectedPlace = ref(null)
+const showSearchResults = ref(false)
+const isSearching = ref(false)
+const isComposing = ref(false)
+let searchTimeout = null
 
 const formData = reactive({
-  place_id: '',
   title: '',
   content: '',
 })
@@ -126,28 +215,109 @@ const hashtags = ref([])
 const imagePreview = ref([])
 const imageFiles = ref([])
 
-// 장소 목록 불러오기
-const fetchPlaces = async () => {
-  try {
-    const response = await fetch('/api/places')
-    if (response.ok) {
-      places.value = await response.json()
+const selectKeyword = async (keyword) => {
+  // 입력창에 키워드 주입
+  placeSearchQuery.value = keyword
+
+  // 검색 결과창을 열고 로딩 상태로 변경
+  showSearchResults.value = true
+  isSearching.value = true
+
+  // 기존 검색 함수 호출
+  await handlePlaceSearch()
+
+  // 로딩 완료 후 (handlePlaceSearch 내부에 있다면 생략 가능)
+  isSearching.value = false
+}
+
+// 장소 검색 (디바운싱 적용)
+const handlePlaceSearch = () => {
+  clearTimeout(searchTimeout)
+
+  if (placeSearchQuery.value.length < 2) {
+    searchResults.value = []
+    return
+  }
+
+  isSearching.value = true
+
+  searchTimeout = setTimeout(async () => {
+    try {
+      const response = await fetch(
+        `/api/v1/places/search/?q=${encodeURIComponent(placeSearchQuery.value)}&limit=10`,
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        searchResults.value = data.results
+      }
+    } catch (error) {
+      console.error('장소 검색 오류:', error)
+    } finally {
+      isSearching.value = false
     }
-  } catch (error) {
-    console.error('장소 목록 로딩 실패:', error)
-    alert('장소 목록을 불러오는데 실패했습니다.')
+  }, 300) // 300ms 디바운싱
+}
+
+// 장소 선택
+const selectPlace = (place) => {
+  selectedPlace.value = place
+  placeSearchQuery.value = ''
+  searchResults.value = []
+  showSearchResults.value = false
+}
+
+// 선택된 장소 해제
+const clearSelectedPlace = () => {
+  selectedPlace.value = null
+  placeSearchQuery.value = ''
+  searchResults.value = []
+}
+
+// 외부 클릭 시 검색 결과 닫기
+const handleClickOutside = (event) => {
+  const searchWrapper = document.querySelector('.place-search-wrapper')
+  if (searchWrapper && !searchWrapper.contains(event.target)) {
+    showSearchResults.value = false
   }
 }
 
 // 해시태그 추가
 const addHashtag = () => {
-  const tags = hashtagInput.value
-    .split(' ')
-    .filter((tag) => tag.trim().startsWith('#'))
-    .map((tag) => tag.trim())
+  let tag = hashtagInput.value.trim()
 
-  hashtags.value = [...new Set([...hashtags.value, ...tags])]
-  hashtagInput.value = ''
+  // 쉼표나 공백 제거
+  tag = tag.replace(/[\s,]/g, '')
+
+  if (!tag || tag === '#') {
+    hashtagInput.value = ''
+    return
+  }
+
+  const formattedTag = tag.startsWith('#') ? tag : `#${tag}`
+
+  // 중복 태그 방지
+  if (!hashtags.value.includes(formattedTag)) {
+    hashtags.value.push(formattedTag)
+  }
+
+  hashtagInput.value = '' // 입력창 비우기
+}
+
+const handleHashtagInput = (event) => {
+  // 한글 조합 중일 때는 스페이스 로직을 타지 않도록 방어
+  if (isComposing.value) return
+
+  const value = event.target.value
+  // 마지막 글자가 공백이나 콤마인 경우에만 실행
+  if (value.endsWith(' ') || value.endsWith(',')) {
+    addHashtag()
+  }
+}
+
+const onCompositionEnd = (event) => {
+  isComposing.value = false
+  handleHashtagInput(event)
 }
 
 // 해시태그 제거
@@ -169,13 +339,12 @@ const handleFileChange = (event) => {
     return
   }
 
-  files.forEach((file, index) => {
+  files.forEach((file) => {
     if (file.type.startsWith('image/')) {
       const reader = new FileReader()
       reader.onload = (e) => {
         imagePreview.value.push({
           url: e.target.result,
-          order: imagePreview.value.length,
           file: file,
         })
         imageFiles.value.push(file)
@@ -195,40 +364,47 @@ const removeImage = (index) => {
 
 // 폼 제출
 const handleSubmit = async () => {
-  if (isSubmitting.value) return
+  if (isSubmitting.value || !selectedPlace.value) return
 
   isSubmitting.value = true
 
   try {
-    // FormData 생성
     const formDataToSend = new FormData()
-    formDataToSend.append('place_id', formData.place_id)
+
+    formDataToSend.append('place_cid', selectedPlace.value.cid)
     formDataToSend.append('title', formData.title)
     formDataToSend.append('content', formData.content)
-    formDataToSend.append('hashtags', hashtags.value.join(' '))
 
-    // 이미지 추가 (순서와 함께)
-    imagePreview.value.forEach((img, index) => {
-      formDataToSend.append('images', img.file)
-      formDataToSend.append(`image_order_${index}`, img.order)
+    hashtags.value.forEach((tag) => {
+      formDataToSend.append('hashtags', tag)
     })
 
-    const response = await fetch('/api/articles', {
+    imagePreview.value.forEach((img) => {
+      formDataToSend.append('images', img.file)
+    })
+
+    const token = localStorage.getItem('access_token')
+
+    const response = await fetch('/api/v1/articles/', {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: formDataToSend,
     })
 
     if (response.ok) {
       const data = await response.json()
-      alert('게시물이 작성되었습니다.')
-      router.push(`/articles/${data.article_id}`)
+      alert('게시물이 성공적으로 작성되었습니다!')
+      router.push(`/articles/${data.id || data.article_id}`)
     } else {
-      const error = await response.json()
-      alert(error.message || '게시물 작성에 실패했습니다.')
+      const errorData = await response.json()
+      console.error('서버 에러 응답:', errorData)
+      alert(`작성 실패: ${JSON.stringify(errorData)}`)
     }
   } catch (error) {
-    console.error('게시물 작성 오류:', error)
-    alert('게시물 작성 중 오류가 발생했습니다.')
+    console.error('요청 오류:', error)
+    alert('서버와 통신 중 오류가 발생했습니다.')
   } finally {
     isSubmitting.value = false
   }
@@ -242,7 +418,11 @@ const handleCancel = () => {
 }
 
 onMounted(() => {
-  fetchPlaces()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -302,6 +482,190 @@ onMounted(() => {
   outline: none;
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* 장소 검색 관련 스타일 */
+.place-search-wrapper {
+  position: relative;
+}
+
+.search-results-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.search-loading {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.search-results-list {
+  max-height: 400px;
+}
+
+.search-result-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: #f8f9fa;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.result-thumbnail {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-category {
+  font-size: 12px;
+  color: #3498db;
+  margin-bottom: 0;
+}
+
+.result-address {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-results {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+/* 선택된 장소 표시 */
+.selected-place {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.place-info {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.place-thumbnail {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.place-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.place-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+.place-category {
+  font-size: 13px;
+  color: #3498db;
+  margin-bottom: 4px;
+}
+
+.place-address {
+  font-size: 13px;
+  color: #666;
+}
+
+.btn-clear-place {
+  padding: 8px 16px;
+  background: white;
+  color: #3498db;
+  border: 1px solid #3498db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.btn-clear-place:hover {
+  background: #3498db;
+  color: white;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #999;
+  padding: 5px;
 }
 
 textarea.form-control {
@@ -424,19 +788,6 @@ textarea.form-control {
   background: rgba(255, 0, 0, 0.8);
 }
 
-.image-order {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  width: 50px;
-  padding: 4px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
-  text-align: center;
-}
-
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -481,5 +832,57 @@ textarea.form-control {
 .btn-cancel:hover {
   background: #f8f9fa;
   border-color: #bdc3c7;
+}
+
+/* 드롭다운 내부 스크롤 및 크기 설정 */
+.search-results-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 400px; /* 이중 스크롤 방지를 위해 높이 제한 */
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+/* 추천 키워드 섹션 스타일 */
+.recommendation-section {
+  padding: 16px;
+}
+
+.recommend-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #888;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-tag {
+  background: #f1f3f5;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.keyword-tag:hover {
+  background: #e9ecef;
+  color: #667eea;
+  transform: translateY(-1px);
 }
 </style>
