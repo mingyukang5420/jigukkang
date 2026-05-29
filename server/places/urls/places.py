@@ -9,6 +9,8 @@ from places.views import places
 app_name = "places"
 
 urlpatterns = [
+    # GET: 장소 실시간 검색 (자동완성)
+    path("search/", places.place_search, name="place-search"),
     # GET: 장소 목록 조회 (게시글 작성 시 장소 선택용)
     path("", places.place_list, name="place-list"),
     # GET: 장소 상세 조회

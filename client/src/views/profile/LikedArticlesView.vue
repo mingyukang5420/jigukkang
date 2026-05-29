@@ -142,11 +142,13 @@ onMounted(() => {
 }
 
 .btn-back {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7f8c8d;
   background: none;
   border: none;
-  color: #667eea;
-  font-weight: 600;
   cursor: pointer;
+  padding: 10px 0;
   margin-bottom: 15px;
 }
 
@@ -191,13 +193,16 @@ onMounted(() => {
 
 .author-badge {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  top: 12px;
+  right: 12px;
   background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 12px;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
   font-size: 0.75rem;
+  font-weight: 700;
+  backdrop-filter: saturate(120%) blur(4px);
+  pointer-events: none;
 }
 
 .article-info {

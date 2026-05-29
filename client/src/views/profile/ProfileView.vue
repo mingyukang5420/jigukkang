@@ -54,8 +54,8 @@
           </router-link>
 
           <router-link to="/profile/liked-articles" class="activity-card">
-            <div class="card-icon">✅</div>
-            <h3>좋아요 목록</h3>
+            <div class="card-icon">❤️</div>
+            <h3>좋아요 한 글</h3>
             <p>관심 있는 게시글</p>
             <div class="card-arrow">→</div>
           </router-link>

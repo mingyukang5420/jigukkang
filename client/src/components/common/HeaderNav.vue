@@ -7,6 +7,8 @@
         <template v-if="isLoggedIn">
           <router-link to="/random" class="nav-link">랜덤 뽑기</router-link>
           <router-link to="/articles/list" class="nav-link">피드</router-link>
+          <router-link to="/articles/create" class="nav-link">글쓰기</router-link>
+          <span> | </span>
           <router-link :to="`/profile/${user?.username}`" class="nav-link">
             <div class="user-info">
               <span class="nickname">{{ user?.nickname }}님</span>

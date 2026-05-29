@@ -22,6 +22,97 @@ from rest_framework.response import Response
 
 @extend_schema(
     tags=["places"],
+    summary="장소 검색 (자동완성)",
+    description="입력한 검색어로 장소를 실시간 검색합니다.",
+    parameters=[
+        OpenApiParameter(
+            name="q",
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description="검색어 (최소 2자)",
+            required=True,
+        ),
+        OpenApiParameter(
+            name="limit",
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+            description="결과 개수 (기본: 10, 최대: 20)",
+        ),
+    ],
+    responses={
+        200: {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "cid": {"type": "string"},
+                            "title": {"type": "string"},
+                            "category_path": {"type": "string"},
+                            "address_new": {"type": "string"},
+                            "main_image": {"type": "string"},
+                        },
+                    },
+                },
+                "total": {"type": "integer"},
+            },
+        }
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticatedOrReadOnly])
+def place_search(request):
+    """
+    장소 실시간 검색 (자동완성)
+    GET /api/v1/places/search/?q=검색어
+
+    게시글 작성 시 장소 선택을 위한 검색 API
+    """
+    query = request.GET.get("q", "").strip()
+
+    # 최소 2자 이상 입력
+    if len(query) < 2:
+        return Response(
+            {"results": [], "total": 0, "message": "최소 2자 이상 입력해주세요"},
+            status=status.HTTP_200_OK,
+        )
+
+    # 검색 제한 개수
+    limit = min(int(request.GET.get("limit", 10)), 20)
+
+    # 장소 검색 (제목 우선, 주소 포함)
+    places = Place.objects.filter(title__icontains=query) | Place.objects.filter(
+        address_new__icontains=query
+    )
+
+    # 정렬: 제목 일치도 우선, 최신순
+    places = places.distinct().order_by("-created_at")[:limit]
+
+    # 간단한 정보만 반환
+    results = []
+    for place in places:
+        results.append(
+            {
+                "cid": place.cid,
+                "title": place.title,
+                "category_path": place.category_path.strip(),
+                "address_new": place.address_new,
+                "main_image": place.main_image,
+            }
+        )
+
+    return Response(
+        {
+            "results": results,
+            "total": len(results),
+        }
+    )
+
+
+@extend_schema(
+    tags=["places"],
     summary="장소 목록 조회",
     description="장소 목록을 검색하고 필터링합니다.",
     parameters=[
