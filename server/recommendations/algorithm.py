@@ -102,7 +102,7 @@ def get_user_preference_vector(user) -> Optional[np.ndarray]:
         return None
     
     # 가중 평균 (최근 것에 더 높은 가중치)
-    weights = np.linspace(0.5, 1.0, len(embeddings))
+    weights = np.linspace(1.0, 0.5, len(embeddings))
     weighted_avg = np.average(embeddings, axis=0, weights=weights)
     
     return weighted_avg

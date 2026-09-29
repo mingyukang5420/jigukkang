@@ -96,7 +96,7 @@ def get_ai_recommended_article(user, articles):
         return random.choice(articles)
 
     # 가중 평균 계산 (최근 것에 더 높은 가중치)
-    weights = np.linspace(0.5, 1.0, len(embeddings))
+    weights = np.linspace(1.0, 0.5, len(embeddings))
     user_preference = np.average(embeddings, axis=0, weights=weights)
 
     # 2. 후보 게시글들과 유사도 계산
